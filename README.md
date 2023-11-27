@@ -4,7 +4,9 @@ Ensure you have the following installed on your machine: Java Development Kit (J
 
 Use online gdb to run all the files https://www.onlinegdb.com/
 
-[Kruskal and Prims  OnlineGDP Link](https://onlinegdb.com/2kZp0F9DdB)
+#### OnlineGDP Links 
+- [Kruskal and Prims](https://onlinegdb.com/2kZp0F9DdB)
+- [10 Possible Path Visualisation](https://onlinegdb.com/thbxBRMXX)
 
 Download the inttelij sowfware from the link given below https://www.jetbrains.com/idea/download/?section=windows
 
