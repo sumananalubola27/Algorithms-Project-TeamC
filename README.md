@@ -45,3 +45,17 @@ we get the visualization map between all the cities which includes the distance 
 - Console Output
 ![image](https://github.com/Sirish-C/Algorithms-Project-TeamC/assets/151453614/99da5b9c-f81b-46c1-92c0-ec0f8c99331e)
 
+## Input
+- Enter source city
+- Enter destination city
+- Enter desired travel range
+
+## Output
+It shows the list of all the near by cities that can be covered within the given range
+
+## Example
+- Results
+![image](https://github.com/Sirish-C/Algorithms-Project-TeamC/assets/151453614/2ade9b83-019b-4c2c-affa-ce3fb1fa0be2)
+
+
+
