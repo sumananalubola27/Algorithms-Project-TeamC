@@ -1,0 +1,310 @@
+import edu.uci.ics.jung.algorithms.layout.Layout;
+import edu.uci.ics.jung.algorithms.layout.SpringLayout;
+import edu.uci.ics.jung.visualization.VisualizationViewer;
+import edu.uci.ics.jung.visualization.control.CrossoverScalingControl;
+import edu.uci.ics.jung.visualization.control.DefaultModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.ModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.ScalingControl;
+import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
+
+
+import edu.uci.ics.jung.graph.Graph;
+import java.awt.Color;
+import java.util.Collection;
+
+import javax.swing.*;
+import java.awt.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+public class CityGraph1 extends JFrame {
+
+    private Map<String, Point> cities = new HashMap<>();
+    private Map<String, Map<String, Double>> distances = new HashMap<>();
+    private Map<String, Color> stateColors = new HashMap<>(); // Map state IDs to colors
+    private Map<String, Map<String, String>> weatherData = new HashMap<>();
+    private Map<String, String> cityToStateMapping = new HashMap<>();
+
+    public CityGraph1() {
+        setTitle("City Graph Visualization");
+        setSize(1500, 800);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        // Read data from CSV and populate 'cities', 'distances', and 'stateColors' maps
+        readDataFromCSV("D:/distance_matrics - Copy.csv", "D:/Weather data_120 cities - Sheet1.csv");
+
+
+        // Create JUNG graph
+        edu.uci.ics.jung.graph.Graph<String, String> graph = createGraph();
+
+        printGraphInformation(graph);
+
+        // Create JUNG layout using SpringLayout
+        Layout<String, String> layout = new SpringLayout<>(graph);
+
+        // Create visualization viewer
+        VisualizationViewer<String, String> vv = new VisualizationViewer<>(layout, new Dimension(1500, 800));
+
+        // Customize edge labels
+        vv.getRenderContext().setEdgeLabelTransformer(e -> e.substring(e.lastIndexOf('-') + 1) + " miles");
+
+        // Customize vertex labels
+        vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller<>());
+
+        // Customize vertex colors based on state ID
+        vv.getRenderContext().setVertexFillPaintTransformer(vertex -> stateColors.get(vertex));
+
+        getContentPane().add(vv);
+        setVisible(true);
+
+        // Animate the graph layout
+        ScalingControl scaler = new CrossoverScalingControl();
+
+        DefaultModalGraphMouse<String, String> graphMouse = new DefaultModalGraphMouse<>();
+        graphMouse.setMode(ModalGraphMouse.Mode.TRANSFORMING); // Set the default mode
+        vv.setGraphMouse(graphMouse);
+        vv.getRenderContext().setMultiLayerTransformer(vv.getRenderContext().getMultiLayerTransformer());
+        vv.scaleToLayout(scaler);
+
+        // This timer controls the speed of the animation
+        Timer timer = new Timer(100, e -> {
+            scaler.scale(vv, 1.03f, vv.getCenter());
+            vv.repaint();
+        });
+
+        timer.setRepeats(true);
+        timer.start();
+    }
+
+    private edu.uci.ics.jung.graph.Graph<String, String> createGraph() {
+        edu.uci.ics.jung.graph.Graph<String, String> graph = new edu.uci.ics.jung.graph.SparseGraph<>();
+
+        for (String cityName : cities.keySet()) {
+            graph.addVertex(cityName);
+        }
+
+        for (Map.Entry<String, Map<String, Double>> entry : distances.entrySet()) {
+            String cityName = entry.getKey();
+            Map<String, Double> cityDistances = entry.getValue();
+
+            if (cityDistances != null) {
+                for (Map.Entry<String, Double> neighborEntry : cityDistances.entrySet()) {
+                    String neighborCity = neighborEntry.getKey();
+                    double distance = neighborEntry.getValue();
+                    String edge_distance = cityName + "-" + neighborCity + "-" + distance;
+
+                    // Check if the edge already exists
+                    boolean edgeExists = false;
+                    for (String existingEdge : graph.getEdges()) {
+                        if (existingEdge.startsWith(cityName + "-" + neighborCity) || existingEdge.startsWith(neighborCity + "-" + cityName)) {
+                            edgeExists = true;
+                            break;
+                        }
+                    }
+
+                    // Check if the distance is within the desired range and the edge does not exist
+                    if (!edgeExists && distance > 0 && distance <= 200) {
+                        // Limit the connections based on the distance
+                        graph.addEdge(edge_distance, cityName, neighborCity);
+                    }
+                }
+            }
+        }
+
+        return graph;
+    }
+
+    private void printGraphInformation(Graph<String, String> graph) {
+        System.out.println("Graph Information:");
+
+        // Iterate over vertices (cities)
+        for (String vertex : graph.getVertices()) {
+            System.out.println("City: " + vertex);
+
+            // Check if weather data exists for the current city
+            if (weatherData.containsKey(vertex)) {
+                Map<String, String> cityWeather = weatherData.get(vertex);
+
+                // Print temperature information
+                for (Map.Entry<String, String> entry : cityWeather.entrySet()) {
+                    System.out.println("  " + entry.getKey() + ": " + entry.getValue());
+                }
+            } else {
+                System.out.println("  No weather data available for this city.");
+            }
+
+            // Iterate over neighbors (connected cities)
+            Collection<String> neighbors = graph.getNeighbors(vertex);
+            for (String neighbor : neighbors) {
+                String edgeName = vertex + "-" + neighbor;
+
+                // Print edge information (distance)
+                double distance = distances.get(vertex).get(neighbor);
+                System.out.println("  Connected to " + neighbor + " | Distance: " + distance + " miles");
+
+                // Check if weather data exists for the connected city
+                if (weatherData.containsKey(neighbor)) {
+                    Map<String, String> neighborWeather = weatherData.get(neighbor);
+
+                    // Print temperature information for the connected city
+                    for (Map.Entry<String, String> entry : neighborWeather.entrySet()) {
+                        System.out.println("    " + entry.getKey() + ": " + entry.getValue());
+                    }
+                } else {
+                    System.out.println("    No weather data available for the connected city.");
+                }
+            }
+
+            System.out.println();
+        }
+    }
+
+
+    private void readDataFromCSV(String distanceCsvFile, String weatherCsvFile) {
+        try (BufferedReader br = new BufferedReader(new FileReader(distanceCsvFile))) {
+            String line;
+            boolean headerSkipped = false;
+            String[] cityNames = null; // Store city names
+
+            while ((line = br.readLine()) != null) {
+                if (!headerSkipped) {
+                    headerSkipped = true;
+
+                    // Check if the first row contains city names
+                    if (line.contains(",")) {
+                        cityNames = line.split(",");
+                    } else {
+                        // If not, use the first column as city names
+                        cityNames = new String[]{line};
+                        // Add a default city name at 0,0 position if it's empty
+                        if (cityNames[0].trim().isEmpty()) {
+                            cityNames[0] = "DefaultCity";
+                        }
+                    }
+
+                    continue; // Skip the header row
+                }
+
+                String[] parts = line.split(",");
+                String originCity = parts[0].trim();
+                //System.out.println(originCity);
+                String stateId = "";
+
+// Extract the last two letters of the city name as state ID
+                if (originCity.length() >= 2) {
+                    stateId = originCity.substring(originCity.length() - 2).trim();
+                    //System.out.println(stateId);
+                } else {
+                    // Handle cases where the city name is less than two characters
+                    stateId = originCity.trim();
+                }
+
+
+
+// Use city names as they are from the CSV file
+                cities.putIfAbsent(originCity, getRandomPoint());
+
+// Get or generate a color for the state
+                // Get or generate a color for the state based on the entire state ID
+                Color stateColor = stateColors.computeIfAbsent(stateId, k -> getRandomColor());
+
+// Store state ID to color mapping
+                stateColors.putIfAbsent(originCity, stateColor);
+// Iterate over distances and add them to the map
+                // Iterate over distances and add them to the map
+                for (int i = 1; i < parts.length; i++) {
+                    String destinationCity = cityNames[i].trim();
+                    String distanceStr = parts[i].trim();
+
+                    // Replace '0' with the largest possible value
+                    double distance = distanceStr.equals("0") ? Double.MAX_VALUE : Double.parseDouble(distanceStr);
+
+                    cities.putIfAbsent(destinationCity, getRandomPoint());
+
+                    // Create a new Map for distances if not present
+                    distances.putIfAbsent(originCity, new HashMap<>());
+
+                    // Add the distance to the destination city
+                    distances.get(originCity).put(destinationCity, distance);
+
+                    // Extract state ID for the destination city
+                    String destStateId = extractStateId(destinationCity);
+
+                    // Use the color associated with the state ID for both origin and destination cities
+                    Color destStateColor = stateColors.computeIfAbsent(destStateId, k -> getRandomColor());
+                    stateColors.putIfAbsent(destinationCity, destStateColor);
+                }
+
+
+            }
+        } catch (IOException | NumberFormatException e) {
+            e.printStackTrace();
+        }
+
+        // Read weather data from CSV
+        try (BufferedReader br = new BufferedReader(new FileReader(weatherCsvFile))) {
+            String line;
+            boolean headerSkipped = false;
+            String[] weatherHeaders = null; // Store weather data headers
+
+            while ((line = br.readLine()) != null) {
+                if (!headerSkipped) {
+                    headerSkipped = true;
+                    weatherHeaders = line.split(","); // Assuming comma-separated values for weather data
+                    continue; // Skip the header row
+                }
+
+                String[] parts = line.split(",");
+                String cityName = parts[1].trim(); // CityName column
+
+                // Use only the relevant columns (AvgTemperature, Unit)
+                if (weatherHeaders != null && weatherHeaders.length > 2) {
+                    Map<String, String> cityWeather = new HashMap<>();
+                    cityWeather.put(weatherHeaders[2], parts[2].trim()); // AvgTemperature
+                    cityWeather.put(weatherHeaders[3], parts[3].trim()); // Unit
+
+                    // Add weather data to the map
+                    weatherData.putIfAbsent(cityName, cityWeather);
+                }
+            }
+        } catch (IOException | ArrayIndexOutOfBoundsException e) {
+            e.printStackTrace();
+        }
+    }
+    private String extractStateId(String city) {
+        return city.substring(city.lastIndexOf('-') + 1).trim();
+    }
+
+
+    private Point getRandomPoint() {
+        int x = (int) (Math.random() * 500) + 50; // Adjust the range as needed
+        int y = (int) (Math.random() * 500) + 50;
+        return new Point(x, y);
+    }
+
+    private Color getRandomColor() {
+        // Generate a random color
+        return new Color((int) (Math.random() * 256), (int) (Math.random() * 256), (int) (Math.random() * 256));
+    }
+    // Add this method to the CityGraph1 class
+    private void printStateColors() {
+        System.out.println("State ID and Assigned Colors:");
+        for (Map.Entry<String, Color> entry : stateColors.entrySet()) {
+            System.out.println("State ID: " + entry.getKey() + " | Color: " + entry.getValue());
+        }
+    }
+
+    // Modify the main method as follows
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            CityGraph1 cityGraph = new CityGraph1();
+            //cityGraph.printStateColors(); // Print state IDs and assigned colors
+        });
+    }
+
+
+
+}
