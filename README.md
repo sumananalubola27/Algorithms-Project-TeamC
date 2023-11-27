@@ -8,7 +8,7 @@ Use online gdb to run all the files https://www.onlinegdb.com/
 - [Kruskal and Prims](https://onlinegdb.com/2kZp0F9DdB)
 - [10 Possible Path Visualisation](https://onlinegdb.com/thbxBRMXX)
 
-Download the inttelij sowfware from the link given below https://www.jetbrains.com/idea/download/?section=windows
+Download the intellij sowfware from the link given below https://www.jetbrains.com/idea/download/?section=windows
 
 ## Input
 Enter which algorithm to apply and used to run prims or kruskal's algorithm
